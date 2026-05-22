@@ -11,7 +11,7 @@
 # `_::method` pattern to match methods across impl blocks.
 
 aeneas:
-  commit: "1180be60"
+  commit: "1b39931d"
   repo: "https://github.com/AeneasVerif/aeneas.git"
 
 upstream:

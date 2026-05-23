@@ -16,19 +16,8 @@ set_option linter.style.whitespace false
 /- You can set the `maxHeartbeats` value with the `-max-heartbeats` CLI option -/
 set_option maxHeartbeats 1000000
 
+/- You can set the `maxRecDepth` value with the `-max-recdepth` CLI option -/
+set_option maxRecDepth 2048
 
-/-- [generic_array::GenericArray]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/generic-array-0.14.7/src/lib.rs', lines 179:0-179:45
-    Name pattern: [generic_array::GenericArray]
-    Visibility: public -/
-@[rust_type "generic_array::GenericArray"]
-axiom generic_array.GenericArray {T : Type} {U : Type} {Clause0_ArrayType :
-  Type} (ArrayLengthInst : generic_array.ArrayLength U T Clause0_ArrayType) :
-  Type
 
-/-- [inout::inout::InOut]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/inout-0.1.4/src/inout.rs', lines 7:0-7:31
-    Name pattern: [inout::inout::InOut]
-    Visibility: public -/
-@[rust_type "inout::inout::InOut"]
-axiom inout.inout.InOut (T : Type) : Type
+

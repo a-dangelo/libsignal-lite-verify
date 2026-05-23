@@ -13,6 +13,9 @@ set_option linter.style.whitespace false
 
 /- You can set the `maxHeartbeats` value with the `-max-heartbeats` CLI option -/
 set_option maxHeartbeats 1000000
+
+/- You can set the `maxRecDepth` value with the `-max-recdepth` CLI option -/
+set_option maxRecDepth 2048
 open signal_crypto
 
 
@@ -26,7 +29,7 @@ axiom Slice.Insts.CoreCmpPartialEqArray.eq
   T U) :
   Slice T → Array U N → Result Bool
 
-/-- [core::num::nonzero::{core::num::nonzero::NonZero<T, Clause0_NonZeroInner>[TraitClause@0]}::new]:
+/-- [core::num::nonzero::{core::num::nonzero::NonZero<T, Clause0_NonZeroInner>}::new]:
     Source: '/rustc/library/core/src/num/nonzero.rs', lines 401:4-401:42
     Name pattern: [core::num::nonzero::{core::num::nonzero::NonZero<@T, @Clause0_NonZeroInner>}::new]
     Visibility: public -/
@@ -35,9 +38,9 @@ axiom Slice.Insts.CoreCmpPartialEqArray.eq
 axiom core.num.nonzero.NonZero.new
   {T : Type} {Clause0_NonZeroInner : Type} (ZeroablePrimitiveInst :
   core.num.nonzero.ZeroablePrimitive T Clause0_NonZeroInner) :
-  T → Result (Option (core.num.nonzero.NonZero ZeroablePrimitiveInst))
+  T → Result (Option (core.num.nonzero.NonZero T Clause0_NonZeroInner))
 
-/-- [core::num::nonzero::{core::num::nonzero::NonZero<T, Clause0_NonZeroInner>[TraitClause@0]}::get]:
+/-- [core::num::nonzero::{core::num::nonzero::NonZero<T, Clause0_NonZeroInner>}::get]:
     Source: '/rustc/library/core/src/num/nonzero.rs', lines 480:4-480:31
     Name pattern: [core::num::nonzero::{core::num::nonzero::NonZero<@T, @Clause0_NonZeroInner>}::get]
     Visibility: public -/
@@ -46,7 +49,7 @@ axiom core.num.nonzero.NonZero.new
 axiom core.num.nonzero.NonZero.get
   {T : Type} {Clause0_NonZeroInner : Type} (ZeroablePrimitiveInst :
   core.num.nonzero.ZeroablePrimitive T Clause0_NonZeroInner) :
-  core.num.nonzero.NonZero ZeroablePrimitiveInst → Result T
+  core.num.nonzero.NonZero T Clause0_NonZeroInner → Result T
 
 /-- [core::option::{core::option::Option<T>}::map]:
     Source: '/rustc/library/core/src/option.rs', lines 1160:4-1162:53
@@ -127,25 +130,6 @@ axiom alloc.string.String.Insts.CoreOpsDerefDerefStr.deref
 axiom alloc.vec.Vec.into_boxed_slice
   {T : Type} (A : Type) : alloc.vec.Vec T → Result (Slice T)
 
-/-- [ctr::flavors::ctr32::{ctr::flavors::CtrFlavor<B, ctr::flavors::ctr32::CtrNonce32<Clause1_Output, Clause2_ArrayType>[TraitClause@2], u32, Clause0_ArrayType, core::num::error::TryFromIntError, core::convert::Infallible, core::num::error::TryFromIntError, core::num::error::TryFromIntError, core::num::error::TryFromIntError, core::num::error::TryFromIntError, core::convert::Infallible, core::convert::Infallible, core::convert::Infallible, core::num::error::TryFromIntError> for ctr::flavors::ctr32::Ctr32BE}::NAME]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ctr-0.9.2/src/flavors/ctr32.rs', lines 42:4-42:28
-    Name pattern: [ctr::flavors::ctr32::{ctr::flavors::CtrFlavor<ctr::flavors::ctr32::Ctr32BE, @B, ctr::flavors::ctr32::CtrNonce32<@Clause1_Output, @Clause2_ArrayType>, u32, @Clause0_ArrayType, core::num::error::TryFromIntError, core::convert::Infallible, core::num::error::TryFromIntError, core::num::error::TryFromIntError, core::num::error::TryFromIntError, core::num::error::TryFromIntError, core::convert::Infallible, core::convert::Infallible, core::convert::Infallible, core::num::error::TryFromIntError>}::NAME]
-    Visibility: public -/
-@[rust_const
-  "ctr::flavors::ctr32::{ctr::flavors::CtrFlavor<ctr::flavors::ctr32::Ctr32BE, @B, ctr::flavors::ctr32::CtrNonce32<@Clause1_Output, @Clause2_ArrayType>, u32, @Clause0_ArrayType, core::num::error::TryFromIntError, core::convert::Infallible, core::num::error::TryFromIntError, core::num::error::TryFromIntError, core::num::error::TryFromIntError, core::num::error::TryFromIntError, core::convert::Infallible, core::convert::Infallible, core::convert::Infallible, core::num::error::TryFromIntError>}::NAME"]
-axiom
-  ctr.flavors.ctr32.Ctr32BE.Insts.CtrFlavorsCtrFlavorBCtrNonce32U32Clause0_ArrayTypeTryFromIntErrorInfallibleTryFromIntErrorTryFromIntErrorTryFromIntErrorTryFromIntErrorInfallibleInfallibleInfallibleTryFromIntError.NAME
-  {B : Type} {Clause0_ArrayType : Type} {Clause1_Output : Type}
-  {Clause2_ArrayType : Type} (generic_arrayArrayLengthBU8Clause0_ArrayTypeInst
-  : generic_array.ArrayLength B Std.U8 Clause0_ArrayType)
-  (typenumtype_operatorsPartialDivBUIntUIntUIntUTermB1B0B0Clause1_OutputInst :
-  typenum.type_operators.PartialDiv B (typenum.uint.UInt (typenum.uint.UInt
-  (typenum.uint.UInt typenum.uint.UTerm typenum.bit.B1) typenum.bit.B0)
-  typenum.bit.B0) Clause1_Output)
-  (generic_arrayArrayLengthClause1_OutputU32Clause2_ArrayTypeInst :
-  generic_array.ArrayLength Clause1_Output Std.U32 Clause2_ArrayType)
-  : Result Str
-
 /-- [derive_more::convert::try_from::{derive_more::convert::try_from::TryFromReprError<T>}::new]:
     Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/derive_more-2.1.1/src/convert.rs', lines 29:8-29:42
     Name pattern: [derive_more::convert::try_from::{derive_more::convert::try_from::TryFromReprError<@T>}::new]
@@ -178,7 +162,8 @@ axiom uuid.builder.Uuid.from_bytes : Array Std.U8 16#usize → Result uuid.Uuid
 def uuid.Uuid.as_bytes (self : uuid.Uuid) : Result (Array Std.U8 16#usize) :=
   ok self.bytes
 
-/-- An axiom representing a UUID byte length error (returned when slice length ≠ 16) -/
+/-- A UUID byte-length error (returned when slice length ≠ 16). Hand-axiom for
+the `.Err` branch of `from_slice`. -/
 axiom uuid.error.Error.byteLengthError : uuid.error.Error
 
 /-- [uuid::builder::{uuid::Uuid}::from_slice]:
@@ -188,7 +173,7 @@ axiom uuid.error.Error.byteLengthError : uuid.error.Error
 @[rust_fun "uuid::builder::{uuid::Uuid}::from_slice"]
 noncomputable def uuid.builder.Uuid.from_slice
   (s : Slice Std.U8) : Result (core.result.Result uuid.Uuid uuid.error.Error) :=
-  if h: s.len = 16#usize then
+  if h : s.len = 16#usize then
     ok (.Ok ⟨⟨s.val, by scalar_tac⟩⟩)
   else
     ok (.Err uuid.error.Error.byteLengthError)
@@ -824,15 +809,15 @@ axiom aes_cbc.aes_256_cbc_decrypt
     (alloc.vec.Vec Std.U8) aes_cbc.DecryptionError)
 
 /-- [signal_crypto::aes_ctr::{signal_crypto::aes_ctr::Aes256Ctr32}::new]:
-    Source: 'rust/crypto/src/aes_ctr.rs', lines 21:4-36:5
+    Source: 'rust/crypto/src/aes_ctr.rs', lines 23:4-38:5
     Visibility: public -/
 axiom aes_ctr.Aes256Ctr32.new
   :
-  aes.autodetect.Aes256 → Slice Std.U8 → Std.U32 → Result
-    (core.result.Result aes_ctr.Aes256Ctr32 error.Error)
+  aes.soft.Aes256 → Slice Std.U8 → Std.U32 → Result (core.result.Result
+    aes_ctr.Aes256Ctr32 error.Error)
 
 /-- [signal_crypto::aes_ctr::{signal_crypto::aes_ctr::Aes256Ctr32}::from_key]:
-    Source: 'rust/crypto/src/aes_ctr.rs', lines 38:4-44:5
+    Source: 'rust/crypto/src/aes_ctr.rs', lines 40:4-46:5
     Visibility: public -/
 axiom aes_ctr.Aes256Ctr32.from_key
   :
@@ -840,7 +825,7 @@ axiom aes_ctr.Aes256Ctr32.from_key
     aes_ctr.Aes256Ctr32 error.Error)
 
 /-- [signal_crypto::aes_ctr::{signal_crypto::aes_ctr::Aes256Ctr32}::process]:
-    Source: 'rust/crypto/src/aes_ctr.rs', lines 46:4-48:5
+    Source: 'rust/crypto/src/aes_ctr.rs', lines 48:4-50:5
     Visibility: public -/
 axiom aes_ctr.Aes256Ctr32.process
   :
@@ -914,3 +899,5 @@ axiom hash.CryptographicHash.finalize
   :
   hash.CryptographicHash → Result ((alloc.vec.Vec Std.U8) ×
     hash.CryptographicHash)
+
+

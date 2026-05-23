@@ -15,6 +15,9 @@ set_option linter.style.whitespace false
 /- You can set the `maxHeartbeats` value with the `-max-heartbeats` CLI option -/
 set_option maxHeartbeats 1000000
 
+/- You can set the `maxRecDepth` value with the `-max-recdepth` CLI option -/
+set_option maxRecDepth 2048
+
 /- You can remove the following line by using the CLI option `-all-computable`: -/
 noncomputable section
 
@@ -329,8 +332,7 @@ def libsignal_core.address.MAX_VALID_DEVICE_ID : Std.U8 := 127#u8
 @[rust_fun
   "libsignal_core::address::{libsignal_core::address::DeviceId}::new_nonzero"]
 def libsignal_core.address.DeviceId.new_nonzero
-  (id : core.num.nonzero.NonZero
-  U8.Insts.CoreNumNonzeroZeroablePrimitiveNonZeroU8Inner) :
+  (id : core.num.nonzero.NonZero Std.U8 core.num.niche_types.NonZeroU8Inner) :
   Result (core.result.Result libsignal_core.address.DeviceId
     libsignal_core.address.InvalidDeviceId)
   := do
@@ -375,6 +377,7 @@ def libsignal_core.curve.PublicKey.scalar_is_in_range
     if i1 != 0#u8
     then ok true
     else
+      do
       let i2 ← Array.index_usize k 0#usize
       let i3 ← lift (core.num.U8.wrapping_sub 0#u8 19#u8)
       if i2 >= i3
@@ -392,7 +395,7 @@ def libsignal_core.curve.PublicKey.scalar_is_in_range
       else ok false
   ok (¬ b)
 
-/-- [libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::{core::ops::function::FnOnce<(core::num::nonzero::NonZero<u64, core::num::niche_types::NonZeroU64Inner>[core::num::nonzero::{core::num::nonzero::ZeroablePrimitive<core::num::niche_types::NonZeroU64Inner> for u64}]), libsignal_core::e164::E164> for libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::closure}::call_once]:
+/-- [libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::{core::ops::function::FnOnce<(core::num::nonzero::NonZero<u64, core::num::niche_types::NonZeroU64Inner>), libsignal_core::e164::E164> for libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::closure}::call_once]:
     Source: 'rust/core/src/e164.rs', lines 27:55-27:62
     Name pattern: [libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::{core::ops::function::FnOnce<libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::closure, (core::num::nonzero::NonZero<u64, core::num::niche_types::NonZeroU64Inner>), libsignal_core::e164::E164>}::call_once] -/
 @[rust_fun
@@ -400,13 +403,13 @@ def libsignal_core.curve.PublicKey.scalar_is_in_range
 def
   libsignal_core.e164.E164.from_be_bytes.closure.Insts.CoreOpsFunctionFnOnceTupleNonZeroU64NonZeroU64InnerE164.call_once
   (c : libsignal_core.e164.E164.from_be_bytes.closure)
-  (tupled_args : core.num.nonzero.NonZero
-  U64.Insts.CoreNumNonzeroZeroablePrimitiveNonZeroU64Inner) :
+  (tupled_args : core.num.nonzero.NonZero Std.U64
+  core.num.niche_types.NonZeroU64Inner) :
   Result libsignal_core.e164.E164
   := do
   ok { inner := tupled_args }
 
-/-- Trait implementation: [libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::{core::ops::function::FnOnce<(core::num::nonzero::NonZero<u64, core::num::niche_types::NonZeroU64Inner>[core::num::nonzero::{core::num::nonzero::ZeroablePrimitive<core::num::niche_types::NonZeroU64Inner> for u64}]), libsignal_core::e164::E164> for libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::closure}]
+/-- Trait implementation: [libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::{core::ops::function::FnOnce<(core::num::nonzero::NonZero<u64, core::num::niche_types::NonZeroU64Inner>), libsignal_core::e164::E164> for libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::closure}]
     Source: 'rust/core/src/e164.rs', lines 27:55-27:62
     Name pattern: [core::ops::function::FnOnce<libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::closure, (core::num::nonzero::NonZero<u64, core::num::niche_types::NonZeroU64Inner>), libsignal_core::e164::E164>] -/
 @[reducible, rust_trait_impl
@@ -414,8 +417,7 @@ def
 def
   libsignal_core.e164.E164.from_be_bytes.closure.Insts.CoreOpsFunctionFnOnceTupleNonZeroU64NonZeroU64InnerE164
   : core.ops.function.FnOnce libsignal_core.e164.E164.from_be_bytes.closure
-  (core.num.nonzero.NonZero
-  U64.Insts.CoreNumNonzeroZeroablePrimitiveNonZeroU64Inner)
+  (core.num.nonzero.NonZero Std.U64 core.num.niche_types.NonZeroU64Inner)
   libsignal_core.e164.E164 := {
   call_once :=
     libsignal_core.e164.E164.from_be_bytes.closure.Insts.CoreOpsFunctionFnOnceTupleNonZeroU64NonZeroU64InnerE164.call_once
@@ -426,7 +428,7 @@ def
     Name pattern: [libsignal_core::version::VERSION]
     Visibility: public -/
 @[global_simps, irreducible, rust_const "libsignal_core::version::VERSION"]
-def libsignal_core.version.VERSION : Str := toStr "0.90.0"
+def libsignal_core.version.VERSION : Str := toStr "0.94.0"
 
 /-- Trait implementation: [subtle::{subtle::ConstantTimeEq for u8}]
     Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/subtle-2.6.1/src/lib.rs', lines 346:8-346:36

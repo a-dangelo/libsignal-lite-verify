@@ -17,15 +17,11 @@ set_option linter.style.whitespace false
 /- You can set the `maxHeartbeats` value with the `-max-heartbeats` CLI option -/
 set_option maxHeartbeats 1000000
 
+/- You can set the `maxRecDepth` value with the `-max-recdepth` CLI option -/
+set_option maxRecDepth 2048
+
 namespace signal_crypto
 
-
-/-- [ctr::flavors::ctr32::Ctr32BE]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ctr-0.9.2/src/flavors/ctr32.rs', lines 33:0-33:16
-    Name pattern: [ctr::flavors::ctr32::Ctr32BE]
-    Visibility: public -/
-@[rust_type "ctr::flavors::ctr32::Ctr32BE"]
-inductive ctr.flavors.ctr32.Ctr32BE where
 
 /-- [libsignal_core::address::ServiceIdKind]
     Source: 'rust/core/src/address.rs', lines 19:0-19:22
@@ -63,8 +59,7 @@ inductive libsignal_core.address.ServiceId where
     Visibility: public -/
 @[rust_type "libsignal_core::address::DeviceId"]
 structure libsignal_core.address.DeviceId where
-  id : core.num.nonzero.NonZero
-    U8.Insts.CoreNumNonzeroZeroablePrimitiveNonZeroU8Inner
+  id : core.num.nonzero.NonZero Std.U8 core.num.niche_types.NonZeroU8Inner
 
 /-- [libsignal_core::address::ProtocolAddress]
     Source: 'rust/core/src/address.rs', lines 777:0-777:26
@@ -81,8 +76,7 @@ structure libsignal_core.address.ProtocolAddress where
     Visibility: public -/
 @[rust_type "libsignal_core::e164::E164"]
 structure libsignal_core.e164.E164 where
-  inner : core.num.nonzero.NonZero
-    U64.Insts.CoreNumNonzeroZeroablePrimitiveNonZeroU64Inner
+  inner : core.num.nonzero.NonZero Std.U64 core.num.niche_types.NonZeroU64Inner
 
 /-- [libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::closure]
     Source: 'rust/core/src/e164.rs', lines 27:55-27:62

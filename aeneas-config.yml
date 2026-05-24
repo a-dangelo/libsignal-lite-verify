@@ -1,14 +1,15 @@
-# Aeneas extraction configuration — combined (signal-crypto + libsignal-core)
+# Aeneas extraction configuration — libsignal-protocol PQXDH
 #
-# Extracts signal-crypto as the target crate, with libsignal-core as a
-# transparent dependency (`--include libsignal_core`).
+# Extracts libsignal-protocol's PQXDH module as the primary target,
+# with signal-crypto and libsignal-core as transparent dependencies
+# (`--include signal_crypto`, `--include libsignal_core`).
 #
-# start_from_pub covers all pub items of signal-crypto (the target crate).
-# The start_from list below manually adds pub functions from libsignal-core
-# that aren't pulled in as dependencies of signal-crypto. Charon only
-# discovers foreign-crate items that are referenced from the target crate's
-# code, so core's inherent methods must be listed explicitly. We use the
-# `_::method` pattern to match methods across impl blocks.
+# start_from_pub is false: we do NOT want Charon to walk all of
+# libsignal-protocol's pub surface (most of which uses prost::Message for
+# serialization, which Charon panics on at MIR time). Instead, the
+# start_from list below names the PQXDH module as the only protocol-level
+# entry point, plus the libsignal-core pub items needed for PR#4 specs to
+# keep building. The `_::method` pattern matches methods across impl blocks.
 
 aeneas:
   commit: "1b39931d"
@@ -20,12 +21,14 @@ upstream:
 
 crate:
   dir: "rust"
-  name: "signal_crypto"
+  name: "libsignal_protocol"
 
 charon:
-  cargo_args: ["-p", "signal-crypto", "--features", "extraction"]
-  start_from_pub: true
+  cargo_args: ["-p", "libsignal-protocol", "--features", "extraction"]
+  start_from_pub: false
   start_from:
+    # libsignal-protocol::pqxdh (the primary M5 target)
+    - "libsignal_protocol::pqxdh"
     # libsignal-core free functions and constants
     - "libsignal_core::try_scoped"
     - "libsignal_core::derive_arrays"
@@ -65,6 +68,7 @@ charon:
     - "libsignal_core::curve::_::from_public_and_private"
   include:
     - "libsignal_core"
+    - "signal_crypto"
   exclude:
     # Formatting and error trait impls (not needed for verification)
     - "signal_crypto::{impl core::fmt::Debug for _}"
@@ -121,6 +125,14 @@ charon:
     - "signal_crypto::hash::_::new"
     - "signal_crypto::hash::_::update"
     - "signal_crypto::hash::_::finalize"
+    # libsignal-protocol::pqxdh — bodies Aeneas can't model:
+    # HKDF closures and Option<&T> accessors. (The Handshake trait + its
+    # impl are excluded at source level via #[charon::exclude] —
+    # see rust/protocol/src/{handshake.rs, pqxdh.rs}.)
+    - "libsignal_protocol::pqxdh::_::derive"                 # HKDF closure
+    - "libsignal_protocol::pqxdh::_::derive_with_label"      # HKDF closure
+    - "libsignal_protocol::pqxdh::_::their_one_time_pre_key" # Option<&PublicKey>
+    - "libsignal_protocol::pqxdh::_::our_one_time_pre_key_pair" # Option<&KeyPair>
 
 aeneas_args:
   options:

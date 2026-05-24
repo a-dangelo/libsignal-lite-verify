@@ -35,6 +35,11 @@ use crate::{
 /// protocol (4 EC DH + 1 ML-KEM encapsulation/decapsulation).
 pub(crate) struct Pqxdh;
 
+// Excluded under the `extraction` feature: this is thin glue that
+// delegates to the free functions `pqxdh_initiate` / `pqxdh_accept`
+// below. Excluding the impl avoids Aeneas's PrePasses panic on the
+// trait's GAT.
+#[cfg_attr(feature = "extraction", charon::exclude)]
 impl Handshake for Pqxdh {
     type InitiatorParams = InitiatorParameters;
     type RecipientParams<'a> = RecipientParameters<'a>;

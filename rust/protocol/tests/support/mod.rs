@@ -182,7 +182,7 @@ pub fn initialize_sessions_v4() -> Result<(SessionRecord, SessionRecord), Signal
         bob_kyber_key,
         *alice_identity.identity_key(),
         alice_base_key.public_key,
-        &kyber_ciphertext,
+        kyber_ciphertext,
         false,
     );
 

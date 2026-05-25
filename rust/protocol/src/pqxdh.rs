@@ -42,7 +42,7 @@ pub(crate) struct Pqxdh;
 #[cfg_attr(feature = "extraction", charon::exclude)]
 impl Handshake for Pqxdh {
     type InitiatorParams = InitiatorParameters;
-    type RecipientParams<'a> = RecipientParameters<'a>;
+    type RecipientParams<'a> = RecipientParameters;
     type InitiatorMessage = kem::SerializedCiphertext;
     type SessionSecret = HandshakeKeys;
 
@@ -247,7 +247,7 @@ pub(crate) fn pqxdh_initiate<R: Rng + CryptoRng>(
 /// The recipient uses their own pre-keys together with the initiator's
 /// identity and base keys (received in the pre-key message) to compute
 /// the same shared secret.
-pub struct RecipientParameters<'a> {
+pub struct RecipientParameters {
     our_identity_key_pair: IdentityKeyPair,
     our_signed_pre_key_pair: KeyPair,
     our_one_time_pre_key_pair: Option<KeyPair>,
@@ -255,12 +255,12 @@ pub struct RecipientParameters<'a> {
 
     their_identity_key: IdentityKey,
     their_ephemeral_key: PublicKey,
-    their_kyber_ciphertext: &'a kem::SerializedCiphertext,
+    their_kyber_ciphertext: kem::SerializedCiphertext,
 
     self_session: bool,
 }
 
-impl<'a> RecipientParameters<'a> {
+impl RecipientParameters {
     pub fn new(
         our_identity_key_pair: IdentityKeyPair,
         our_signed_pre_key_pair: KeyPair,
@@ -268,7 +268,7 @@ impl<'a> RecipientParameters<'a> {
         our_kyber_pre_key_pair: kem::KeyPair,
         their_identity_key: IdentityKey,
         their_ephemeral_key: PublicKey,
-        their_kyber_ciphertext: &'a kem::SerializedCiphertext,
+        their_kyber_ciphertext: kem::SerializedCiphertext,
         self_session: bool,
     ) -> Self {
         Self {
@@ -315,7 +315,7 @@ impl<'a> RecipientParameters<'a> {
 
     #[inline]
     pub fn their_kyber_ciphertext(&self) -> &kem::SerializedCiphertext {
-        self.their_kyber_ciphertext
+        &self.their_kyber_ciphertext
     }
 
     #[inline]
@@ -374,7 +374,7 @@ pub(crate) fn pqxdh_accept(parameters: &RecipientParameters) -> Result<Handshake
         &parameters
             .our_kyber_pre_key_pair
             .secret_key
-            .decapsulate(parameters.their_kyber_ciphertext)?,
+            .decapsulate(&parameters.their_kyber_ciphertext)?,
     );
 
     Ok(HandshakeKeys::derive(&secrets))

@@ -81,6 +81,12 @@ pub enum SignalProtocolError {
     /// error while invoking an ffi callback: {0}
     FfiBindingError(String),
     /// error in method call '{0}': {1}
+    // Cfg-gated out under `extraction`: the `Box<dyn Error>` field uses
+    // dynamic trait dispatch which Aeneas cannot translate (AENEAS-009).
+    // PQXDH does not construct or pattern-match on this variant; the only
+    // constructors and matchers live in the `bridge/shared` crates which
+    // are not part of the extraction target.  See src-modifications.md M08.
+    #[cfg(not(feature = "extraction"))]
     ApplicationCallbackError(
         &'static str,
         #[source] Box<dyn std::error::Error + Send + Sync + UnwindSafe + 'static>,
@@ -105,6 +111,7 @@ pub enum SignalProtocolError {
     BadKEMCiphertextLength(kem::KeyType, usize),
 }
 
+#[cfg(not(feature = "extraction"))]
 impl SignalProtocolError {
     /// Convenience factory for [`SignalProtocolError::ApplicationCallbackError`].
     #[inline]

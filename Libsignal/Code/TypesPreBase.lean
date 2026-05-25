@@ -16,7 +16,7 @@ set_option maxHeartbeats 1000000
 /- You can set the `maxRecDepth` value with the `-max-recdepth` CLI option -/
 set_option maxRecDepth 2048
 
-namespace signal_crypto
+namespace libsignal_protocol
 
 
 /-- Trait declaration: [core::num::nonzero::private::Sealed]
@@ -31,89 +31,12 @@ structure core.num.nonzero.private.Sealed (Self : Type) where
     Name pattern: [core::num::nonzero::ZeroablePrimitive]
     Visibility: public -/
 @[rust_trait "core::num::nonzero::ZeroablePrimitive"
-  (parentClauses := ["markerCopyInst", "privateSealedInst", "markerCopyInst"])]
+  (parentClauses := ["markerCopyInst", "privateSealedInst", "markerCopyInnerInst"])]
 structure core.num.nonzero.ZeroablePrimitive (Self : Type) (Self_NonZeroInner :
   Type) where
   markerCopyInst : core.marker.Copy Self
   privateSealedInst : core.num.nonzero.private.Sealed Self
   markerCopyInst1 : core.marker.Copy Self_NonZeroInner
-
-/-- [typenum::uint::UTerm]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/typenum-1.19.0/src/uint.rs', lines 50:0-50:16
-    Name pattern: [typenum::uint::UTerm]
-    Visibility: public -/
-@[reducible, rust_type "typenum::uint::UTerm"]
-def typenum.uint.UTerm := Unit
-
-/-- [typenum::bit::B1]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/typenum-1.19.0/src/bit.rs', lines 33:0-33:13
-    Name pattern: [typenum::bit::B1]
-    Visibility: public -/
-@[reducible, rust_type "typenum::bit::B1"]
-def typenum.bit.B1 := Unit
-
-/-- [typenum::bit::B0]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/typenum-1.19.0/src/bit.rs', lines 20:0-20:13
-    Name pattern: [typenum::bit::B0]
-    Visibility: public -/
-@[reducible, rust_type "typenum::bit::B0"]
-def typenum.bit.B0 := Unit
-
-/-- Trait declaration: [typenum::sealed::Sealed]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/typenum-1.19.0/src/lib.rs', lines 154:4-154:20
-    Name pattern: [typenum::sealed::Sealed]
-    Visibility: public -/
-@[rust_trait "typenum::sealed::Sealed"]
-structure typenum.sealed.Sealed (Self : Type) where
-
-/-- Trait declaration: [typenum::marker_traits::Unsigned]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/typenum-1.19.0/src/marker_traits.rs', lines 59:0-59:53
-    Name pattern: [typenum::marker_traits::Unsigned]
-    Visibility: public -/
-@[rust_trait "typenum::marker_traits::Unsigned"
-  (parentClauses := ["sealedSealedInst", "coremarkerCopyInst", "coredefaultDefaultInst"])
-  (consts := ["U8", "U16", "U32", "U64", "USIZE", "I8", "I16", "I32", "I64", "ISIZE"])]
-structure typenum.marker_traits.Unsigned (Self : Type) where
-  U8 : Result Std.U8
-  U16 : Result Std.U16
-  U32 : Result Std.U32
-  U64 : Result Std.U64
-  USIZE : Result Std.Usize
-  I8 : Result Std.I8
-  I16 : Result Std.I16
-  I32 : Result Std.I32
-  I64 : Result Std.I64
-  ISIZE : Result Std.Isize
-  sealedSealedInst : typenum.sealed.Sealed Self
-  coremarkerCopyInst : core.marker.Copy Self
-  coredefaultDefaultInst : core.default.Default Self
-  to_u8 : Result Std.U8
-  to_u16 : Result Std.U16
-  to_u32 : Result Std.U32
-  to_u64 : Result Std.U64
-  to_usize : Result Std.Usize
-  to_i8 : Result Std.I8
-  to_i16 : Result Std.I16
-  to_i32 : Result Std.I32
-  to_i64 : Result Std.I64
-  to_isize : Result Std.Isize
-
-/-- Trait declaration: [typenum::marker_traits::Bit]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/typenum-1.19.0/src/marker_traits.rs', lines 35:0-35:48
-    Name pattern: [typenum::marker_traits::Bit]
-    Visibility: public -/
-@[rust_trait "typenum::marker_traits::Bit"
-  (parentClauses := ["sealedSealedInst", "coremarkerCopyInst", "coredefaultDefaultInst"])
-  (consts := ["U8", "BOOL"])]
-structure typenum.marker_traits.Bit (Self : Type) where
-  U8 : Result Std.U8
-  BOOL : Result Bool
-  sealedSealedInst : typenum.sealed.Sealed Self
-  coremarkerCopyInst : core.marker.Copy Self
-  coredefaultDefaultInst : core.default.Default Self
-  new : Result Self
-  to_u8 : Result Std.U8
-  to_bool : Result Bool
 
 /-- Trait declaration: [rand_core::RngCore]
     Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rand_core-0.9.3/src/lib.rs', lines 130:0-130:17
@@ -141,31 +64,6 @@ structure rand_core.CryptoRng (Self : Type) where
 structure rand.rng.Rng (Self : Type) where
   rand_coreRngCoreInst : rand_core.RngCore Self
 
-/-- Trait declaration: [rand::distr::distribution::Distribution]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rand-0.9.4/src/distr/distribution.rs', lines 35:0-35:25
-    Name pattern: [rand::distr::distribution::Distribution]
-    Visibility: public -/
-@[rust_trait "rand::distr::distribution::Distribution"]
-structure rand.distr.distribution.Distribution (Self : Type) (T : Type) where
-  sample : forall {R : Type} (rngRngInst : rand.rng.Rng R), Self → R →
-    Result (T × R)
-
-/-- [rand::distr::StandardUniform]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rand-0.9.4/src/distr/mod.rs', lines 214:0-214:26
-    Name pattern: [rand::distr::StandardUniform]
-    Visibility: public -/
-@[reducible, rust_type "rand::distr::StandardUniform"]
-def rand.distr.StandardUniform := Unit
-
-/-- Trait declaration: [rand::rng::Fill]
-    Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rand-0.9.4/src/rng.rs', lines 366:0-366:14
-    Name pattern: [rand::rng::Fill]
-    Visibility: public -/
-@[rust_trait "rand::rng::Fill"]
-structure rand.rng.Fill (Self : Type) where
-  fill : forall {R : Type} (RngInst : rand.rng.Rng R), Self → R → Result
-    (Self × R)
-
 /-- [derive_more::convert::try_from::TryFromReprError]
     Source: '/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/derive_more-2.1.1/src/convert.rs', lines 17:4-17:34
     Name pattern: [derive_more::convert::try_from::TryFromReprError]
@@ -173,32 +71,6 @@ structure rand.rng.Fill (Self : Type) where
 @[rust_type "derive_more::convert::try_from::TryFromReprError"]
 structure derive_more.convert.try_from.TryFromReprError (T : Type) where
   input : T
-
-/-- [signal_crypto::aes_cbc::EncryptionError]
-    Source: 'rust/crypto/src/aes_cbc.rs', lines 13:0-16:1
-    Visibility: public -/
-@[discriminant isize]
-inductive aes_cbc.EncryptionError where
-| BadKeyOrIv : aes_cbc.EncryptionError
-
-/-- [signal_crypto::aes_cbc::DecryptionError]
-    Source: 'rust/crypto/src/aes_cbc.rs', lines 19:0-24:1
-    Visibility: public -/
-@[discriminant isize]
-inductive aes_cbc.DecryptionError where
-| BadKeyOrIv : aes_cbc.DecryptionError
-| BadCiphertext : Str → aes_cbc.DecryptionError
-
-/-- [signal_crypto::error::Error]
-    Source: 'rust/crypto/src/error.rs', lines 7:0-18:1
-    Visibility: public -/
-@[discriminant isize]
-inductive error.Error where
-| UnknownAlgorithm : Str → String → error.Error
-| InvalidKeySize : error.Error
-| InvalidNonceSize : error.Error
-| InvalidInputSize : error.Error
-| InvalidTag : error.Error
 
 /-- [libsignal_core::address::InvalidDeviceId]
     Source: 'rust/core/src/address.rs', lines 691:0-691:26
@@ -269,5 +141,5 @@ structure libsignal_core.curve.KeyPair where
   private_key : libsignal_core.curve.PrivateKey
 
 
-end signal_crypto
+end libsignal_protocol
 

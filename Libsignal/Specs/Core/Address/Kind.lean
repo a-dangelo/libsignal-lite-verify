@@ -39,7 +39,7 @@ and every branch immediately returns `ok`.
 
 open Aeneas Aeneas.Std Result
 
-namespace signal_crypto.libsignal_core.address.ServiceId
+namespace libsignal_protocol.libsignal_core.address.ServiceId
 
 /-
 natural language description:
@@ -66,4 +66,4 @@ theorem kind_spec (self : libsignal_core.address.ServiceId) :
   unfold kind
   step*
 
-end signal_crypto.libsignal_core.address.ServiceId
+end libsignal_protocol.libsignal_core.address.ServiceId

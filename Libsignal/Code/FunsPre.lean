@@ -20,7 +20,7 @@ set_option maxRecDepth 2048
 /- You can remove the following line by using the CLI option `-all-computable`: -/
 noncomputable section
 
-namespace signal_crypto
+namespace libsignal_protocol
 
 
 /-- [core::num::niche_types::{core::clone::Clone for core::num::niche_types::NonZeroU64Inner}::clone]:
@@ -128,5 +128,5 @@ def U8.Insts.CoreNumNonzeroZeroablePrimitiveNonZeroU8Inner :
 }
 
 
-end signal_crypto
+end libsignal_protocol
 

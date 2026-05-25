@@ -133,6 +133,28 @@ charon:
     - "libsignal_protocol::pqxdh::_::derive_with_label"      # HKDF closure
     - "libsignal_protocol::pqxdh::_::their_one_time_pre_key" # Option<&PublicKey>
     - "libsignal_protocol::pqxdh::_::our_one_time_pre_key_pair" # Option<&KeyPair>
+    # pqxdh_accept body translation fails with "There should be no bottoms in
+    # the value" inside Aeneas's symbolic interpreter (interp/Interp.ml:550).
+    # pqxdh_initiate (symmetric counterpart) translates fine. Marking
+    # pqxdh_accept opaque means its body is axiomatized; signature remains
+    # extracted. See AENEAS-010 in
+    # .formalising/toFVS/charon-aeneas-shortcomings.md for the open question.
+    - "libsignal_protocol::pqxdh::pqxdh_accept"
+    # libsignal-protocol::kem — Plan A scope:
+    # encapsulate, decapsulate, Ciphertext::serialize/deserialize are
+    # TRANSPARENT (their bodies are extracted; the libcrux ML-KEM primitive is
+    # the axiomatic leaf). Everything else in kem.rs that touches the
+    # `DynParameters` vtable becomes opaque — these aren't called from the
+    # PQXDH verification target.  See src-modifications.md M05-M07 and
+    # src-assumptions.md A03-A04.
+    - "libsignal_protocol::kem::KeyType::parameters"     # vtable accessor; returns &dyn DynParameters
+    - "libsignal_protocol::kem::_::key_length"            # KeyKind::key_length impls (Public, Secret) use parameters()
+    - "libsignal_protocol::kem::KeyPair::generate"        # not called from PQXDH; uses parameters().generate()
+    # libcrux ML-KEM 1024 primitive — the axiomatic leaf (FIPS 203).
+    # See src-assumptions.md A03 for the trust-boundary statement.
+    - "libsignal_protocol::kem::kyber1024::_::encapsulate"
+    - "libsignal_protocol::kem::kyber1024::_::decapsulate"
+    - "libsignal_protocol::kem::kyber1024::_::generate"
 
 aeneas_args:
   options:
@@ -267,3 +289,38 @@ tweaks:
     # https://github.com/AeneasVerif/aeneas/issues/920
     - find: "then ok (i = 127#u8)"
       replace: "then ok (i == 127#u8)"
+
+    # Fix Aeneas codegen: duplicate parent-clause field name in
+    # `core::num::nonzero::ZeroablePrimitive`. Both Self:Copy and
+    # Self_NonZeroInner:Copy parent clauses are emitted as `markerCopyInst`,
+    # producing a "Field has already been declared" Lean error.
+    # Rename the second occurrence and its assignment sites.
+    # See AENEAS-010 in .formalising/toFVS/charon-aeneas-shortcomings.md.
+    - find: '(parentClauses := ["markerCopyInst", "privateSealedInst", "markerCopyInst"])'
+      replace: '(parentClauses := ["markerCopyInst", "privateSealedInst", "markerCopyInnerInst"])'
+    - find: "markerCopyInst : core.marker.Copy Self_NonZeroInner"
+      replace: "markerCopyInnerInst : core.marker.Copy Self_NonZeroInner"
+    - find: "markerCopyInst := core.num.niche_types.NonZeroU64Inner.Insts.CoreMarkerCopy"
+      replace: "markerCopyInnerInst := core.num.niche_types.NonZeroU64Inner.Insts.CoreMarkerCopy"
+    - find: "markerCopyInst := core.num.niche_types.NonZeroU8Inner.Insts.CoreMarkerCopy"
+      replace: "markerCopyInnerInst := core.num.niche_types.NonZeroU8Inner.Insts.CoreMarkerCopy"
+
+    # Fix Aeneas codegen: call sites for kem.KeyPublic.encapsulate through the
+    # rand_core.CryptoRng.Blanket+DerefMut path destructure a 3-tuple
+    # (forward_result, intermediate_R, backward_fn), but kem.KeyPublic.encapsulate
+    # itself only returns a 2-tuple (forward_result, R) — there's no backward
+    # continuation in the def. The 3rd-element binding produces "expected a
+    # product type, got R" because Lean tries to unpack the R as a further pair.
+    #
+    # Workaround: drop the backward-fn binding at the destructure (it doesn't
+    # exist) and replace each `encapsulate_back csprng_N` invocation with the
+    # bare csprng_N value (identity, since the back-fn would have been identity
+    # given the 2-tuple def shape).
+    #
+    # Filed upstream: AENEAS-012 (TODO add to charon-aeneas-shortcomings.md).
+    - find: "let (r3, csprng1, encapsulate_back) ←"
+      replace: "let (r3, csprng1) ←"
+    - find: "let (r4, csprng1, encapsulate_back) ←"
+      replace: "let (r4, csprng1) ←"
+    - find: "let csprng2 := encapsulate_back csprng1"
+      replace: "let csprng2 := csprng1"

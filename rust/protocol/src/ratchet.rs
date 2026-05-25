@@ -22,7 +22,7 @@ use crate::{KeyPair, Result, SessionRecord, SignalProtocolError, consts};
 #[doc(hidden)]
 pub type AliceSignalProtocolParameters = InitiatorParameters;
 #[doc(hidden)]
-pub type BobSignalProtocolParameters<'a> = RecipientParameters<'a>;
+pub type BobSignalProtocolParameters = RecipientParameters;
 
 fn spqr_chain_params(self_connection: bool) -> spqr::ChainParams {
     #[allow(clippy::needless_update)]

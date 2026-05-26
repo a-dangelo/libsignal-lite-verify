@@ -278,6 +278,314 @@ diff -Naur --no-dereference a/rust/protocol/Cargo.toml b/rust/protocol/Cargo.tom
  kyber768 = ["libcrux-ml-kem/kyber", "libcrux-ml-kem/mlkem768"]
  # ML-KEM matches the NIST standard version of Kyber. It may still change
  # incompatibly until the final version of the standard is published and
+diff -Naur --no-dereference a/rust/protocol/src/error.rs b/rust/protocol/src/error.rs
+--- a/rust/protocol/src/error.rs
++++ b/rust/protocol/src/error.rs
+@@ -81,6 +81,12 @@
+     /// error while invoking an ffi callback: {0}
+     FfiBindingError(String),
+     /// error in method call '{0}': {1}
++    // Cfg-gated out under `extraction`: the `Box<dyn Error>` field uses
++    // dynamic trait dispatch which Aeneas cannot translate (AENEAS-009).
++    // PQXDH does not construct or pattern-match on this variant; the only
++    // constructors and matchers live in the `bridge/shared` crates which
++    // are not part of the extraction target.  See src-modifications.md M08.
++    #[cfg(not(feature = "extraction"))]
+     ApplicationCallbackError(
+         &'static str,
+         #[source] Box<dyn std::error::Error + Send + Sync + UnwindSafe + 'static>,
+@@ -105,6 +111,7 @@
+     BadKEMCiphertextLength(kem::KeyType, usize),
+ }
+ 
++#[cfg(not(feature = "extraction"))]
+ impl SignalProtocolError {
+     /// Convenience factory for [`SignalProtocolError::ApplicationCallbackError`].
+     #[inline]
+diff -Naur --no-dereference a/rust/protocol/src/handshake.rs b/rust/protocol/src/handshake.rs
+--- a/rust/protocol/src/handshake.rs
++++ b/rust/protocol/src/handshake.rs
+@@ -28,6 +28,12 @@
+ /// enforce a clean boundary: the message is data for the wire, the secret
+ /// is data for the ratchet. These are currently protocol-specific types
+ /// but should eventually become opaque byte arrays.
++// Excluded under the `extraction` feature: Aeneas cannot translate trait
++// associated types with parameters (`type RecipientParams<'a>`). The
++// free functions `pqxdh_initiate` / `pqxdh_accept` in `pqxdh.rs` are the
++// real extraction targets; the trait + impl below are thin glue and are
++// dropped from the LLBC.
++#[cfg_attr(feature = "extraction", charon::exclude)]
+ pub(crate) trait Handshake {
+     /// Parameters for the initiator (constructed from a pre-key bundle).
+     type InitiatorParams;
+diff -Naur --no-dereference a/rust/protocol/src/kem.rs b/rust/protocol/src/kem.rs
+--- a/rust/protocol/src/kem.rs
++++ b/rust/protocol/src/kem.rs
+@@ -106,6 +106,11 @@
+ }
+ 
+ /// Acts as a bridge between the static [Parameters] trait and the dynamic [KeyType] enum.
++// Excluded under the `extraction` feature: Aeneas's symbolic interpreter
++// cannot model `&dyn Trait` (dynamic dispatch). The vtable dispatch sites
++// in `Key<Public>::encapsulate` and `Key<Secret>::decapsulate` are
++// replaced inline with direct `match`-on-`KeyType` dispatch.
++#[cfg_attr(feature = "extraction", charon::exclude)]
+ trait DynParameters {
+     fn public_key_length(&self) -> usize;
+     fn secret_key_length(&self) -> usize;
+@@ -125,6 +130,7 @@
+     ) -> Result<SharedSecret>;
+ }
+ 
++#[cfg_attr(feature = "extraction", charon::exclude)]
+ impl<T: Parameters> DynParameters for T {
+     fn public_key_length(&self) -> usize {
+         Self::PUBLIC_KEY_LENGTH
+@@ -351,15 +357,23 @@
+         &self,
+         csprng: &mut R,
+     ) -> Result<(SharedSecret, SerializedCiphertext)> {
+-        let (ss, ct) = self
+-            .key_type
+-            .parameters()
+-            .encapsulate(&self.key_data, csprng)?;
++        // Direct dispatch (replaces vtable dispatch through `DynParameters`).
++        // See src-modifications.md M07 and AENEAS-009 in
++        // .formalising/toFVS/charon-aeneas-shortcomings.md.
++        let (ss, ct) = match self.key_type {
++            KeyType::Kyber1024 => <kyber1024::Parameters as Parameters>::encapsulate(
++                &self.key_data,
++                csprng,
++            )
++            .map_err(|BadKEMKeyLength| {
++                SignalProtocolError::BadKEMKeyLength(self.key_type, self.key_data.len())
++            })?,
++        };
+         Ok((
+             ss,
+             Ciphertext {
+                 key_type: self.key_type,
+-                data: &ct,
++                data: ct,
+             }
+             .serialize(),
+         ))
+@@ -378,9 +392,23 @@
+                 self.key_type.value(),
+             ));
+         }
+-        self.key_type
+-            .parameters()
+-            .decapsulate(&self.key_data, ct.data)
++        // Direct dispatch (replaces vtable dispatch through `DynParameters`).
++        // See src-modifications.md M07 and AENEAS-009 in
++        // .formalising/toFVS/charon-aeneas-shortcomings.md.
++        match self.key_type {
++            KeyType::Kyber1024 => <kyber1024::Parameters as Parameters>::decapsulate(
++                &self.key_data,
++                &ct.data,
++            )
++            .map_err(|e| match e {
++                DecapsulateError::BadKeyLength => {
++                    SignalProtocolError::BadKEMKeyLength(self.key_type, self.key_data.len())
++                }
++                DecapsulateError::BadCiphertext => {
++                    SignalProtocolError::BadKEMCiphertextLength(self.key_type, ct.data.len())
++                }
++            }),
++        }
+     }
+ }
+ 
+@@ -478,20 +506,25 @@
+ }
+ 
+ /// Utility type to handle serialization and deserialization of ciphertext data
+-struct Ciphertext<'a> {
++struct Ciphertext {
+     key_type: KeyType,
+-    data: &'a [u8],
++    data: Box<[u8]>,
+ }
+ 
+-impl<'a> Ciphertext<'a> {
++impl Ciphertext {
+     /// Create a `Ciphertext` instance from a byte string created with the
+     /// function `Ciphertext::serialize(&self)`.
+-    pub fn deserialize(value: &'a [u8]) -> Result<Self> {
++    pub fn deserialize(value: &[u8]) -> Result<Self> {
+         if value.is_empty() {
+             return Err(SignalProtocolError::NoKeyTypeIdentifier);
+         }
+         let key_type = KeyType::try_from(value[0])?;
+-        if value.len() != key_type.parameters().ciphertext_length() + 1 {
++        // Direct dispatch on the ciphertext-length constant (replaces vtable
++        // dispatch through `DynParameters`). See src-modifications.md M07.
++        let expected_len = match key_type {
++            KeyType::Kyber1024 => <kyber1024::Parameters as Parameters>::CIPHERTEXT_LENGTH + 1,
++        };
++        if value.len() != expected_len {
+             return Err(SignalProtocolError::BadKEMCiphertextLength(
+                 key_type,
+                 value.len(),
+@@ -499,7 +532,7 @@
+         }
+         Ok(Ciphertext {
+             key_type,
+-            data: &value[1..],
++            data: value[1..].into(),
+         })
+     }
+ 
+@@ -507,7 +540,7 @@
+     pub fn serialize(&self) -> SerializedCiphertext {
+         let mut result = Vec::with_capacity(1 + self.data.len());
+         result.push(self.key_type.value());
+-        result.extend_from_slice(self.data);
++        result.extend_from_slice(&self.data);
+         result.into_boxed_slice()
+     }
+ }
+diff -Naur --no-dereference a/rust/protocol/src/lib.rs b/rust/protocol/src/lib.rs
+--- a/rust/protocol/src/lib.rs
++++ b/rust/protocol/src/lib.rs
+@@ -16,6 +16,8 @@
+ 
+ #![warn(clippy::unwrap_used)]
+ #![deny(unsafe_code)]
++#![cfg_attr(feature = "extraction", feature(register_tool))]
++#![cfg_attr(feature = "extraction", register_tool(charon))]
+ 
+ // TODO(https://github.com/signalapp/libsignal/issues/285): it should be an aspiration to
+ // eventually warn and then error for public members without docstrings. Also see
+diff -Naur --no-dereference a/rust/protocol/src/pqxdh.rs b/rust/protocol/src/pqxdh.rs
+--- a/rust/protocol/src/pqxdh.rs
++++ b/rust/protocol/src/pqxdh.rs
+@@ -35,9 +35,14 @@
+ /// protocol (4 EC DH + 1 ML-KEM encapsulation/decapsulation).
+ pub(crate) struct Pqxdh;
+ 
++// Excluded under the `extraction` feature: this is thin glue that
++// delegates to the free functions `pqxdh_initiate` / `pqxdh_accept`
++// below. Excluding the impl avoids Aeneas's PrePasses panic on the
++// trait's GAT.
++#[cfg_attr(feature = "extraction", charon::exclude)]
+ impl Handshake for Pqxdh {
+     type InitiatorParams = InitiatorParameters;
+-    type RecipientParams<'a> = RecipientParameters<'a>;
++    type RecipientParams<'a> = RecipientParameters;
+     type InitiatorMessage = kem::SerializedCiphertext;
+     type SessionSecret = HandshakeKeys;
+ 
+@@ -242,7 +247,7 @@
+ /// The recipient uses their own pre-keys together with the initiator's
+ /// identity and base keys (received in the pre-key message) to compute
+ /// the same shared secret.
+-pub struct RecipientParameters<'a> {
++pub struct RecipientParameters {
+     our_identity_key_pair: IdentityKeyPair,
+     our_signed_pre_key_pair: KeyPair,
+     our_one_time_pre_key_pair: Option<KeyPair>,
+@@ -250,12 +255,12 @@
+ 
+     their_identity_key: IdentityKey,
+     their_ephemeral_key: PublicKey,
+-    their_kyber_ciphertext: &'a kem::SerializedCiphertext,
++    their_kyber_ciphertext: kem::SerializedCiphertext,
+ 
+     self_session: bool,
+ }
+ 
+-impl<'a> RecipientParameters<'a> {
++impl RecipientParameters {
+     pub fn new(
+         our_identity_key_pair: IdentityKeyPair,
+         our_signed_pre_key_pair: KeyPair,
+@@ -263,7 +268,7 @@
+         our_kyber_pre_key_pair: kem::KeyPair,
+         their_identity_key: IdentityKey,
+         their_ephemeral_key: PublicKey,
+-        their_kyber_ciphertext: &'a kem::SerializedCiphertext,
++        their_kyber_ciphertext: kem::SerializedCiphertext,
+         self_session: bool,
+     ) -> Self {
+         Self {
+@@ -310,7 +315,7 @@
+ 
+     #[inline]
+     pub fn their_kyber_ciphertext(&self) -> &kem::SerializedCiphertext {
+-        self.their_kyber_ciphertext
++        &self.their_kyber_ciphertext
+     }
+ 
+     #[inline]
+@@ -324,12 +329,16 @@
+ /// Computes DH shared secrets and KEM decapsulation, then applies the KDF
+ /// to produce keys ready for ratchet initialization.
+ pub(crate) fn pqxdh_accept(parameters: &RecipientParameters) -> Result<HandshakeKeys> {
+-    // Validate the initiator's base key before doing any computation.
++    // M10: replace `InvalidMessage(CiphertextMessageType::PreKey, "incoming
++    // base key is invalid")` with the unit variant `InvalidKeyAgreement`.
++    // Reason: Aeneas's symbolic interpreter fails ("no bottoms") on early-
++    // return-with-Err carrying a `&'static str` payload. See AENEAS-010 in
++    // .formalising/toFVS/charon-aeneas-shortcomings.md and src-modifications.md.
++    // Semantic equivalence: a non-canonical ephemeral key would equally cause
++    // calculate_agreement below to fail; the early-return is a fail-fast
++    // optimization, not a semantic requirement.
+     if !parameters.their_ephemeral_key.is_canonical() {
+-        return Err(SignalProtocolError::InvalidMessage(
+-            CiphertextMessageType::PreKey,
+-            "incoming base key is invalid",
+-        ));
++        return Err(SignalProtocolError::InvalidKeyAgreement);
+     }
+ 
+     let mut secrets = Vec::with_capacity(32 * 6);
+@@ -369,7 +378,7 @@
+         &parameters
+             .our_kyber_pre_key_pair
+             .secret_key
+-            .decapsulate(parameters.their_kyber_ciphertext)?,
++            .decapsulate(&parameters.their_kyber_ciphertext)?,
+     );
+ 
+     Ok(HandshakeKeys::derive(&secrets))
+diff -Naur --no-dereference a/rust/protocol/src/ratchet.rs b/rust/protocol/src/ratchet.rs
+--- a/rust/protocol/src/ratchet.rs
++++ b/rust/protocol/src/ratchet.rs
+@@ -22,7 +22,7 @@
+ #[doc(hidden)]
+ pub type AliceSignalProtocolParameters = InitiatorParameters;
+ #[doc(hidden)]
+-pub type BobSignalProtocolParameters<'a> = RecipientParameters<'a>;
++pub type BobSignalProtocolParameters = RecipientParameters;
+ 
+ fn spqr_chain_params(self_connection: bool) -> spqr::ChainParams {
+     #[allow(clippy::needless_update)]
+diff -Naur --no-dereference a/rust/protocol/src/session.rs b/rust/protocol/src/session.rs
+--- a/rust/protocol/src/session.rs
++++ b/rust/protocol/src/session.rs
+@@ -154,7 +154,7 @@
+         our_kyber_pre_key_pair,
+         *message.identity_key(),
+         *message.base_key(),
+-        kyber_ciphertext,
++        kyber_ciphertext.clone(),
+         our_identity_key_pair.identity_key().is_same_account(
+             local_address,
+             message.identity_key(),
+diff -Naur --no-dereference a/rust/protocol/src/session_management.rs b/rust/protocol/src/session_management.rs
+--- a/rust/protocol/src/session_management.rs
++++ b/rust/protocol/src/session_management.rs
+@@ -797,7 +797,7 @@
+             bob_kyber_key,
+             *alice_identity.identity_key(),
+             alice_base_key.public_key,
+-            &kyber_ct,
++            kyber_ct,
+             false,
+         );
+ 
 diff -Naur --no-dereference a/rust/protocol/src/timestamp.rs b/rust/protocol/src/timestamp.rs
 --- a/rust/protocol/src/timestamp.rs
 +++ b/rust/protocol/src/timestamp.rs
@@ -339,3 +647,45 @@ diff -Naur --no-dereference a/rust/protocol/src/timestamp.rs b/rust/protocol/src
 +        }
      }
  }
+diff -Naur --no-dereference a/rust/protocol/tests/ratchet.rs b/rust/protocol/tests/ratchet.rs
+--- a/rust/protocol/tests/ratchet.rs
++++ b/rust/protocol/tests/ratchet.rs
+@@ -56,7 +56,7 @@
+         bob_kyber_pre_key_pair,
+         *alice_identity_key_pair.identity_key(),
+         alice_base_key_pair.public_key,
+-        &kyber_ciphertext,
++        kyber_ciphertext,
+         false,
+     );
+     let bob_record = initialize_bob_session_record(&bob_parameters, &bob_ephemeral_key_pair)?;
+@@ -138,7 +138,7 @@
+         bob_kyber_pre_key_pair,
+         *alice_identity_key_pair.identity_key(),
+         tweaked_alice_base_key,
+-        &kyber_ciphertext,
++        kyber_ciphertext,
+         false,
+     );
+ 
+@@ -201,7 +201,7 @@
+         bob_kyber_pre_key_pair,
+         *alice_identity_key_pair.identity_key(),
+         tweaked_alice_base_key,
+-        &kyber_ciphertext,
++        kyber_ciphertext,
+         false,
+     );
+ 
+diff -Naur --no-dereference a/rust/protocol/tests/support/mod.rs b/rust/protocol/tests/support/mod.rs
+--- a/rust/protocol/tests/support/mod.rs
++++ b/rust/protocol/tests/support/mod.rs
+@@ -182,7 +182,7 @@
+         bob_kyber_key,
+         *alice_identity.identity_key(),
+         alice_base_key.public_key,
+-        &kyber_ciphertext,
++        kyber_ciphertext,
+         false,
+     );
+ 

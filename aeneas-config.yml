@@ -133,13 +133,6 @@ charon:
     - "libsignal_protocol::pqxdh::_::derive_with_label"      # HKDF closure
     - "libsignal_protocol::pqxdh::_::their_one_time_pre_key" # Option<&PublicKey>
     - "libsignal_protocol::pqxdh::_::our_one_time_pre_key_pair" # Option<&KeyPair>
-    # pqxdh_accept body translation fails with "There should be no bottoms in
-    # the value" inside Aeneas's symbolic interpreter (interp/Interp.ml:550).
-    # pqxdh_initiate (symmetric counterpart) translates fine. Marking
-    # pqxdh_accept opaque means its body is axiomatized; signature remains
-    # extracted. See AENEAS-010 in
-    # .formalising/toFVS/charon-aeneas-shortcomings.md for the open question.
-    - "libsignal_protocol::pqxdh::pqxdh_accept"
     # libsignal-protocol::kem — Plan A scope:
     # encapsulate, decapsulate, Ciphertext::serialize/deserialize are
     # TRANSPARENT (their bodies are extracted; the libcrux ML-KEM primitive is

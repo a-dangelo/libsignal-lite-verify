@@ -42,6 +42,15 @@ def Mut0T.Insts.CoreOpsDerefDerefMut (T : Type) : core.ops.deref.DerefMut T T
   deref_mut := Mut0T.Insts.CoreOpsDerefDerefMut.deref_mut
 }
 
+/-- Trait implementation: [alloc::boxed::convert::{core::convert::From<&0 ([T])> for alloc::boxed::Box<[T]>}]
+    Source: '/rustc/library/alloc/src/boxed/convert.rs', lines 61:0-61:38
+    Name pattern: [core::convert::From<Box<[@T]>, &'0 [@T]>] -/
+@[reducible, rust_trait_impl "core::convert::From<Box<[@T]>, &'0 [@T]>"]
+def BoxSlice.Insts.CoreConvertFromShared0Slice {T : Type} (corecloneCloneInst :
+  core.clone.Clone T) : core.convert.From (Slice T) (Slice T) := {
+  from_ := BoxSlice.Insts.CoreConvertFromShared0Slice.from corecloneCloneInst
+}
+
 /-- [libsignal_core::address::{core::cmp::PartialEq<libsignal_core::address::ServiceIdKind> for libsignal_core::address::ServiceIdKind}::eq]:
     Source: 'rust/core/src/address.rs', lines 16:28-16:37
     Name pattern: [libsignal_core::address::{core::cmp::PartialEq<libsignal_core::address::ServiceIdKind, libsignal_core::address::ServiceIdKind>}::eq]
@@ -413,6 +422,19 @@ def libsignal_core.curve.PublicKey.scalar_is_in_range
       else ok false
   ok (¬ b)
 
+/-- [libsignal_core::curve::{libsignal_core::curve::PublicKey}::is_canonical]:
+    Source: 'rust/core/src/curve.rs', lines 188:4-188:38
+    Name pattern: [libsignal_core::curve::{libsignal_core::curve::PublicKey}::is_canonical]
+    Visibility: public -/
+@[rust_fun
+  "libsignal_core::curve::{libsignal_core::curve::PublicKey}::is_canonical"]
+def libsignal_core.curve.PublicKey.is_canonical
+  (self : libsignal_core.curve.PublicKey) : Result Bool := do
+  let b ← libsignal_core.curve.PublicKey.is_torsion_free self
+  if b
+  then libsignal_core.curve.PublicKey.scalar_is_in_range self
+  else ok false
+
 /-- [libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::{core::ops::function::FnOnce<(core::num::nonzero::NonZero<u64, core::num::niche_types::NonZeroU64Inner>), libsignal_core::e164::E164> for libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::closure}::call_once]:
     Source: 'rust/core/src/e164.rs', lines 27:55-27:62
     Name pattern: [libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::{core::ops::function::FnOnce<libsignal_core::e164::{libsignal_core::e164::E164}::from_be_bytes::closure, (core::num::nonzero::NonZero<u64, core::num::niche_types::NonZeroU64Inner>), libsignal_core::e164::E164>}::call_once] -/
@@ -520,16 +542,52 @@ def identity_key.IdentityKeyPair.impl.private_key
   := do
   ok self.private_key
 
+/-- [libsignal_protocol::kem::{libsignal_protocol::kem::ConstantLength for libcrux_ml_kem::types::MlKemCiphertext<N>}::LENGTH]
+    Source: 'rust/protocol/src/kem.rs', lines 193:4-193:28 -/
+@[global_simps, irreducible]
+def
+  libcrux_ml_kem.types.MlKemCiphertext.Insts.Libsignal_protocolKemConstantLength.LENGTH
+  (N : Std.Usize) : Std.Usize :=
+  N
+
+/-- [libsignal_protocol::kem::kyber1024::{libsignal_protocol::kem::Parameters for libsignal_protocol::kem::kyber1024::Parameters}::CIPHERTEXT_LENGTH]
+    Source: 'rust/protocol/src/kem/kyber1024.rs', lines 20:4-20:65 -/
+@[global_simps, irreducible]
+def
+  kem.kyber1024.Parameters.Insts.Libsignal_protocolKemParameters.CIPHERTEXT_LENGTH
+  : Std.Usize :=
+  libcrux_ml_kem.types.MlKemCiphertext.Insts.Libsignal_protocolKemConstantLength.LENGTH
+    1568#usize
+
 /-- [libsignal_protocol::kem::{libsignal_protocol::kem::KeyType}::value]:
     Source: 'rust/protocol/src/kem.rs', lines 219:4-227:5 -/
 def kem.KeyType.value (self : kem.KeyType) : Result Std.U8 := do
   ok 8#u8
+
+/-- [libsignal_protocol::kem::{core::convert::TryFrom<u8, libsignal_protocol::error::SignalProtocolError> for libsignal_protocol::kem::KeyType}::try_from]:
+    Source: 'rust/protocol/src/kem.rs', lines 246:4-255:5
+    Visibility: public -/
+def kem.KeyType.Insts.CoreConvertTryFromU8SignalProtocolError.try_from
+  (x : Std.U8) :
+  Result (core.result.Result kem.KeyType error.SignalProtocolError)
+  := do
+  match x with
+  | 8#uscalar => ok (core.result.Result.Ok kem.KeyType.Kyber1024)
+  | _ =>
+    ok (core.result.Result.Err (error.SignalProtocolError.BadKEMKeyType x))
 
 /-- Trait implementation: [libsignal_protocol::kem::{libsignal_protocol::kem::KeyKind for libsignal_protocol::kem::Public}]
     Source: 'rust/protocol/src/kem.rs', lines 264:0-268:1 -/
 @[reducible]
 def kem.Public.Insts.Libsignal_protocolKemKeyKind : kem.KeyKind kem.Public := {
   key_length := kem.Public.Insts.Libsignal_protocolKemKeyKind.key_length
+}
+
+/-- Trait implementation: [libsignal_protocol::kem::{libsignal_protocol::kem::KeyKind for libsignal_protocol::kem::Secret}]
+    Source: 'rust/protocol/src/kem.rs', lines 272:0-276:1 -/
+@[reducible]
+def kem.Secret.Insts.Libsignal_protocolKemKeyKind : kem.KeyKind kem.Secret := {
+  key_length := kem.Secret.Insts.Libsignal_protocolKemKeyKind.key_length
 }
 
 /-- [libsignal_protocol::kem::{core::ops::deref::Deref<[u8]> for libsignal_protocol::kem::KeyMaterial<T>}::deref]:
@@ -616,6 +674,111 @@ def kem.KeyPublic.encapsulate
         ((Slice Std.U8) × (Slice Std.U8)) (core.convert.FromSame
         error.SignalProtocolError) residual
     ok (r2, csprng1)
+
+/-- [libsignal_protocol::kem::{libsignal_protocol::kem::Ciphertext}::deserialize]:
+    Source: 'rust/protocol/src/kem.rs', lines 517:4-537:5
+    Visibility: public -/
+def kem.Ciphertext.deserialize
+  (value : Slice Std.U8) :
+  Result (core.result.Result kem.Ciphertext error.SignalProtocolError)
+  := do
+  let b ← core.slice.Slice.is_empty value
+  if b
+  then
+    ok (core.result.Result.Err error.SignalProtocolError.NoKeyTypeIdentifier)
+  else
+    let i ← Slice.index_usize value 0#usize
+    let r ←
+      kem.KeyType.Insts.CoreConvertTryFromU8SignalProtocolError.try_from i
+    let cf ←
+      core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let expected_len ←
+        kem.kyber1024.Parameters.Insts.Libsignal_protocolKemParameters.CIPHERTEXT_LENGTH
+          + 1#usize
+      let i1 := Slice.len value
+      if i1 != expected_len
+      then
+        let i2 := Slice.len value
+        ok (core.result.Result.Err
+          (error.SignalProtocolError.BadKEMCiphertextLength val i2))
+      else
+        let s ←
+          core.slice.index.Slice.index
+            (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8) value
+            { start := 1#usize }
+        let s1 ←
+          core.convert.IntoFrom.into
+            (BoxSlice.Insts.CoreConvertFromShared0Slice core.clone.CloneU8) s
+        ok (core.result.Result.Ok { key_type := val, data := s1 })
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual
+        kem.Ciphertext (core.convert.FromSame error.SignalProtocolError)
+        residual
+
+/-- [libsignal_protocol::kem::{libsignal_protocol::kem::Key<libsignal_protocol::kem::Secret>}::decapsulate::{core::ops::function::FnOnce<(libsignal_protocol::kem::DecapsulateError), libsignal_protocol::error::SignalProtocolError> for libsignal_protocol::kem::{libsignal_protocol::kem::Key<libsignal_protocol::kem::Secret>}::decapsulate::closure<0, 1>}::call_once]:
+    Source: 'rust/protocol/src/kem.rs', lines 403:21-410:13 -/
+def
+  kem.KeySecret.decapsulate.closure.Insts.CoreOpsFunctionFnOnceTupleDecapsulateErrorSignalProtocolError.call_once
+  (c : kem.KeySecret.decapsulate.closure) (tupled_args : kem.DecapsulateError)
+  :
+  Result error.SignalProtocolError
+  := do
+  let (k, s) := c
+  match tupled_args with
+  | kem.DecapsulateError.BadKeyLength =>
+    let s1 ←
+      kem.KeyMaterial.Insts.CoreOpsDerefDerefSliceU8.deref
+        kem.Secret.Insts.Libsignal_protocolKemKeyKind
+        (core.ops.deref.DerefBoxInst (Slice Std.U8)) k.key_data
+    let i := Slice.len s1
+    ok (error.SignalProtocolError.BadKEMKeyLength k.key_type i)
+  | kem.DecapsulateError.BadCiphertext =>
+    let i := Slice.len s
+    ok (error.SignalProtocolError.BadKEMCiphertextLength k.key_type i)
+
+/-- Trait implementation: [libsignal_protocol::kem::{libsignal_protocol::kem::Key<libsignal_protocol::kem::Secret>}::decapsulate::{core::ops::function::FnOnce<(libsignal_protocol::kem::DecapsulateError), libsignal_protocol::error::SignalProtocolError> for libsignal_protocol::kem::{libsignal_protocol::kem::Key<libsignal_protocol::kem::Secret>}::decapsulate::closure<0, 1>}]
+    Source: 'rust/protocol/src/kem.rs', lines 403:21-410:13 -/
+@[reducible]
+def
+  kem.KeySecret.decapsulate.closure.Insts.CoreOpsFunctionFnOnceTupleDecapsulateErrorSignalProtocolError
+  : core.ops.function.FnOnce kem.KeySecret.decapsulate.closure
+  kem.DecapsulateError error.SignalProtocolError := {
+  call_once :=
+    kem.KeySecret.decapsulate.closure.Insts.CoreOpsFunctionFnOnceTupleDecapsulateErrorSignalProtocolError.call_once
+}
+
+/-- [libsignal_protocol::kem::{libsignal_protocol::kem::Key<libsignal_protocol::kem::Secret>}::decapsulate]:
+    Source: 'rust/protocol/src/kem.rs', lines 386:4-412:5
+    Visibility: public -/
+def kem.KeySecret.decapsulate
+  (self : kem.Key kem.Secret) (ct_bytes : Slice Std.U8) :
+  Result (core.result.Result (Slice Std.U8) error.SignalProtocolError)
+  := do
+  let r ← kem.Ciphertext.deserialize ct_bytes
+  let cf ←
+    core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ←
+      kem.KeyType.Insts.CoreCmpPartialEqKeyType.ne val.key_type self.key_type
+    if b
+    then
+      let i ← kem.KeyType.value val.key_type
+      let i1 ← kem.KeyType.value self.key_type
+      ok (core.result.Result.Err (error.SignalProtocolError.WrongKEMKeyType i
+        i1))
+    else
+      let r1 ←
+        kem.kyber1024.Parameters.Insts.Libsignal_protocolKemParameters.decapsulate
+          self.key_data val.data
+      core.result.Result.map_err
+        kem.KeySecret.decapsulate.closure.Insts.CoreOpsFunctionFnOnceTupleDecapsulateErrorSignalProtocolError
+        r1 (self, val.data)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual
+      (Slice Std.U8) (core.convert.FromSame error.SignalProtocolError) residual
 
 /-- [libsignal_protocol::pqxdh::{libsignal_protocol::pqxdh::InitiatorParameters}::new]:
     Source: 'rust/protocol/src/pqxdh.rs', lines 129:4-148:5
@@ -925,6 +1088,130 @@ def pqxdh.RecipientParameters.impl.their_kyber_ciphertext
 def pqxdh.RecipientParameters.impl.self_session
   (self : pqxdh.RecipientParameters) : Result Bool := do
   ok self.self_session
+
+/-- [libsignal_protocol::pqxdh::pqxdh_accept]:
+    Source: 'rust/protocol/src/pqxdh.rs', lines 331:0-385:1 -/
+def pqxdh.pqxdh_accept
+  (parameters1 : pqxdh.RecipientParameters) :
+  Result (core.result.Result pqxdh.HandshakeKeys error.SignalProtocolError)
+  := do
+  let b ←
+    libsignal_core.curve.PublicKey.is_canonical parameters1.their_ephemeral_key
+  if b
+  then
+    let i ← 32#usize * 6#usize
+    let secrets := alloc.vec.Vec.with_capacity Std.U8 i
+    let a := Array.repeat 32#usize 255#u8
+    let s ← lift (Array.to_slice a)
+    let secrets1 ←
+      alloc.vec.Vec.extend_from_slice core.clone.CloneU8 secrets s
+    let pk ←
+      identity_key.IdentityKey.impl.public_key parameters1.their_identity_key
+    let r ←
+      libsignal_core.curve.PrivateKey.calculate_agreement
+        parameters1.our_signed_pre_key_pair.private_key pk
+    let cf ←
+      core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let secrets2 ←
+        alloc.vec.Vec.extend_from_slice core.clone.CloneU8 secrets1 val
+      let pk1 ←
+        identity_key.IdentityKeyPair.impl.private_key
+          parameters1.our_identity_key_pair
+      let r1 ←
+        libsignal_core.curve.PrivateKey.calculate_agreement pk1
+          parameters1.their_ephemeral_key
+      let cf1 ←
+        core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch
+          r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let secrets3 ←
+          alloc.vec.Vec.extend_from_slice core.clone.CloneU8 secrets2 val1
+        let r2 ←
+          libsignal_core.curve.PrivateKey.calculate_agreement
+            parameters1.our_signed_pre_key_pair.private_key
+            parameters1.their_ephemeral_key
+        let cf2 ←
+          core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch
+            r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let secrets4 ←
+            alloc.vec.Vec.extend_from_slice core.clone.CloneU8 secrets3 val2
+          match parameters1.our_one_time_pre_key_pair with
+          | none =>
+            let r3 ←
+              kem.KeySecret.decapsulate
+                parameters1.our_kyber_pre_key_pair.secret_key
+                parameters1.their_kyber_ciphertext
+            let cf3 ←
+              core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch
+                r3
+            match cf3 with
+            | core.ops.control_flow.ControlFlow.Continue val3 =>
+              let secrets5 ←
+                alloc.vec.Vec.extend_from_slice core.clone.CloneU8 secrets4
+                  val3
+              let s1 := alloc.vec.Vec.deref secrets5
+              let hk ← pqxdh.HandshakeKeys.derive s1
+              ok (core.result.Result.Ok hk)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual
+                pqxdh.HandshakeKeys (core.convert.FromSame
+                error.SignalProtocolError) residual
+          | some our_one_time_pre_key_pair =>
+            let r3 ←
+              libsignal_core.curve.PrivateKey.calculate_agreement
+                our_one_time_pre_key_pair.private_key
+                parameters1.their_ephemeral_key
+            let cf3 ←
+              core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch
+                r3
+            match cf3 with
+            | core.ops.control_flow.ControlFlow.Continue val3 =>
+              let secrets5 ←
+                alloc.vec.Vec.extend_from_slice core.clone.CloneU8 secrets4
+                  val3
+              let r4 ←
+                kem.KeySecret.decapsulate
+                  parameters1.our_kyber_pre_key_pair.secret_key
+                  parameters1.their_kyber_ciphertext
+              let cf4 ←
+                core.result.Result.Insts.CoreOpsTry_traitTryTResultInfallibleE.branch
+                  r4
+              match cf4 with
+              | core.ops.control_flow.ControlFlow.Continue val4 =>
+                let secrets6 ←
+                  alloc.vec.Vec.extend_from_slice core.clone.CloneU8 secrets5
+                    val4
+                let s1 := alloc.vec.Vec.deref secrets6
+                let hk ← pqxdh.HandshakeKeys.derive s1
+                ok (core.result.Result.Ok hk)
+              | core.ops.control_flow.ControlFlow.Break residual =>
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual
+                  pqxdh.HandshakeKeys (core.convert.FromSame
+                  error.SignalProtocolError) residual
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual
+                pqxdh.HandshakeKeys
+                error.SignalProtocolError.Insts.CoreConvertFromCurveError
+                residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual
+            pqxdh.HandshakeKeys
+            error.SignalProtocolError.Insts.CoreConvertFromCurveError residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual
+          pqxdh.HandshakeKeys
+          error.SignalProtocolError.Insts.CoreConvertFromCurveError residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResultInfallibleE.from_residual
+        pqxdh.HandshakeKeys
+        error.SignalProtocolError.Insts.CoreConvertFromCurveError residual
+  else
+    ok (core.result.Result.Err error.SignalProtocolError.InvalidKeyAgreement)
 
 
 end libsignal_protocol

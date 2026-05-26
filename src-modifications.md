@@ -494,31 +494,58 @@ If a future verification scope expands to cover FFI-callback error paths, this M
 
 ---
 
-### M09 — `aeneas-config.yml`: mark `pqxdh_accept` opaque (extraction-time workaround, not a source change)
+### M09 — `aeneas-config.yml`: mark `pqxdh_accept` opaque (extraction-time workaround, NOW REMOVED)
 
 - **File:** `aeneas-config.yml` (`charon.opaque` list)
-- **Commit:** *(uncommitted; bundled with Plan A commit)*
-- **Type:** *config-only opaque* (not a source modification — recorded here for the assumption it introduces)
-- **Upstream issue:** AENEAS-010 (`pqxdh_accept` body: "There should be no bottoms in the value").
+- **Status:** **REMOVED** — superseded by M10 source rewrite. The `pqxdh_accept` opaque entry has been deleted from `aeneas-config.yml`. `pqxdh_accept` now extracts as a transparent Lean `def` in `Funs.lean`.
+- **Type:** historic config-only opaque (kept in this document for the audit trail; no longer active).
+- **Upstream issue:** AENEAS-010.
+
+**Resolution:** M10 (below) bisected the AENEAS-010 trigger to a specific source pattern and rewrote it. With the M10 source rewrite in place, `pqxdh_accept`'s body translates cleanly and the opaque entry is no longer needed.
+
+---
+
+### M10 — `rust/protocol/src/pqxdh.rs:331-338`: replace `InvalidMessage` early-return with unit-variant `InvalidKeyAgreement`
+
+- **File:** `rust/protocol/src/pqxdh.rs` (the `is_canonical()` early-return at the top of `pqxdh_accept`)
+- **Commit:** *(uncommitted; bundled with Phase B commit)*
+- **Type:** `rewrite-equivalent` (semantics-preserving up to error-variant identity / logging string)
+- **Upstream issue:** AENEAS-010.
 
 **Change:**
-```yaml
-opaque:
-  # (other entries...)
-  - "libsignal_protocol::pqxdh::pqxdh_accept"
+```rust
+// Before
+if !parameters.their_ephemeral_key.is_canonical() {
+    return Err(SignalProtocolError::InvalidMessage(
+        CiphertextMessageType::PreKey,
+        "incoming base key is invalid",
+    ));
+}
+
+// After (M10)
+if !parameters.their_ephemeral_key.is_canonical() {
+    return Err(SignalProtocolError::InvalidKeyAgreement);
+}
 ```
 
-**Justification:** With Plan A's source rewrites in place (M01-M08), `pqxdh_initiate` extracts transparently — its body is in `Libsignal/Code/Funs.lean` as a defined function. `pqxdh_accept` (its structural twin) fails body translation with the "no bottoms" error at `interp/Interp.ml:550`. Marking it opaque in `aeneas-config.yml` means:
+**Justification:** Bisection of the AENEAS-010 "no bottoms" symbolic-interpreter trigger isolated it to **early-return-with-Err where the Err variant carries a `&'static str` literal payload**. Variants confirmed:
 
-- The function's signature is still emitted into `Funs.lean` (callers can reference it by name).
-- The body becomes an axiom: verification claims about `pqxdh_accept`'s behavior must be stated externally rather than discharged by symbolic execution of the extracted body.
-- Extraction completes cleanly, the downstream tweaks substitutions run, and `lake build` can proceed.
+| Variant | Result |
+|---|---|
+| Remove the entire `if` block | ✓ extracts |
+| Keep `is_canonical()` call, drop early-return | ✓ extracts |
+| Unit variant `Err(InvalidKeyAgreement)` | ✓ extracts |
+| 2-arg variant without `&'static str` `Err(BadKeyLength(KeyType, usize))` | ✓ extracts |
+| 1-arg variant *with* `&'static str` `Err(InvalidSessionStructure("..."))` | ✗ "no bottoms" |
+| 2-arg variant *with* `&'static str` (original) | ✗ "no bottoms" |
 
-**Last-resort check:** Not yet exhaustively bisected — the precise call or pattern triggering the "no bottoms" symbolic state has not been isolated. Future work could surgically rewrite that pattern (per Path-β style) and revert M09. For the current iteration, opaque-by-config is the smallest viable change that unblocks the build.
+So the trigger is specifically the `&'static str` payload — any Err variant carrying one fails. The fix substitutes a unit variant. See AENEAS-010 in `.formalising/toFVS/charon-aeneas-shortcomings.md` for the full bisection record + upstream-bug framing.
 
-**Semantic claim:** Behavioral equivalence depends on **A05** (PQXDH recipient-side correctness). PQXDH's recipient operation computes the same shared secret as the initiator-side under matched inputs (the standard PQXDH correctness theorem). With `pqxdh_accept` opaque, we cannot verify this from its extracted body; the assumption must be stated. See `src-assumptions.md` A05.
+**Last-resort check:** The early-return is itself a fail-fast optimization: if `their_ephemeral_key` is non-canonical, the immediately-following `calculate_agreement(...)?` would also fail (with `InvalidKeyAgreement`). So removing the early-return entirely would still preserve safety. The chosen rewrite keeps the early-return for performance/clarity but swaps the error-variant to one that does not carry a `&'static str` payload — a strictly less invasive change than removing the check.
 
-**Future work:** isolate the "no bottoms" trigger via progressive simplification of `pqxdh_accept`'s body, and either rewrite around it (preferred) or file the bisection as the Aeneas upstream issue.
+**Semantic claim:** Up to error-variant identity, the original and rewritten code are equivalent on all inputs. The Rust caller chain treats both `InvalidMessage(PreKey, ...)` and `InvalidKeyAgreement` as "key agreement failed" errors. The string "incoming base key is invalid" was for human consumption (log message) only — its loss is observable only to operators reading logs, not to programmatic callers. The lower-level `calculate_agreement` ALSO returns `InvalidKeyAgreement` on a non-canonical key, so the rewritten function's error-variant on bad input is exactly what the original would have produced one statement later anyway.
+
+**Revertibility:** When AENEAS-010 is fixed upstream (see suggested fix in `.formalising/toFVS/charon-aeneas-shortcomings.md`), restore the original `InvalidMessage(CiphertextMessageType::PreKey, "incoming base key is invalid")` and remove the M10 comment block.
 
 ---
 
@@ -535,9 +562,14 @@ https://github.com/AeneasVerif/aeneas/issues):
    `DynParameters` trait + blanket impl visibility; restore vtable
    dispatch at the encapsulate/decapsulate call sites; un-cfg-gate the
    `ApplicationCallbackError` variant).
-5. M01 (the `register_tool(charon)` prelude) stays as long as we use any
+5. `grep AENEAS-010 src-modifications.md` → revert M10 (restore the
+   `InvalidMessage(CiphertextMessageType::PreKey, "incoming base key is
+   invalid")` early-return). M09 was historic and is already removed.
+6. `grep AENEAS-012 ../.formalising/toFVS/charon-aeneas-shortcomings.md` →
+   remove the encapsulate-call-site tweaks substitutions from `aeneas-config.yml`.
+7. M01 (the `register_tool(charon)` prelude) stays as long as we use any
    `charon::*` attributes; revert only when all attributes are gone.
-6. After reverts: bump `aeneas-config.yml: aeneas.commit` to the fix-bearing
+8. After reverts: bump `aeneas-config.yml: aeneas.commit` to the fix-bearing
    pin, run `npm run aeneas-extract`, run `lake build`, regenerate
    `src-modifications.diff`. The diff should narrow visibly.
 

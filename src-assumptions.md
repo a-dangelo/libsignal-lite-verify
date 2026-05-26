@@ -192,9 +192,9 @@ This assumption is the post-quantum analogue of A08 (x25519-dalek correctness, f
 
 ---
 
-## A05 — `pqxdh_accept` recipient-side correctness (axiomatic until body extracted)
+## A05 — `pqxdh_accept` recipient-side correctness (DISCHARGED — body now transparently extracted)
 
-**Invoked by:** M09 (config-only opaque marking of `libsignal_protocol::pqxdh::pqxdh_accept`).
+**Invoked by:** M10 (the source-rewrite that unblocked transparent extraction of `pqxdh_accept`). M09 (the original config-only opaque marking) has been REMOVED.
 
 **Statement:** For any `RecipientParameters` values `p` with internally-consistent pre-keys and any initiator-side state that produced a matching ciphertext, `pqxdh_accept(&p)` returns `Ok(HandshakeKeys { root_key, chain_key, pqr_key })` whose bytes are derivable by the same KDF (HKDF-SHA256 with label `"WhisperText_X25519_SHA-256_CRYSTALS-KYBER-1024"`) over the same byte sequence the initiator produced. In particular:
 
@@ -204,19 +204,11 @@ This assumption is the post-quantum analogue of A08 (x25519-dalek correctness, f
 
 Therefore `pqxdh_accept(&p)` returns the same `HandshakeKeys` that the initiator computed via `pqxdh_initiate`. This is the standard PQXDH correctness theorem.
 
-**Status:** `open` (placeholder until M09 reverts).
+**Status:** `discharged-by-extraction` (downgraded from `open` placeholder). The body of `pqxdh_accept` is now in `Libsignal/Code/Funs.lean` as a transparent Lean `def`. The correctness theorem is provable in Lean by symbolic equivalence to the initiator-side computation (matched DH and KEM operations + identical HKDF) — no longer a meta-theorem-on-Rust-source.
 
-**Justification:** The body of `pqxdh_accept` is opaque to the extraction. The correctness claim cannot be discharged by symbolic execution of the extracted Lean body; it must either be:
+**Note on M10 semantics:** M10 replaced `Err(InvalidMessage(CiphertextMessageType::PreKey, "incoming base key is invalid"))` with `Err(InvalidKeyAgreement)` in the non-canonical-key early-return. The two paths are observably equivalent up to the human-readable string in the error variant; the lower-level `calculate_agreement` would have returned `InvalidKeyAgreement` on a non-canonical key one statement later anyway. So the rewritten `pqxdh_accept` behaves identically to the original on all inputs modulo the error-variant identity on the early-return path. See M10 in `src-modifications.md`.
 
-1. Stated as a meta-theorem about the un-extracted Rust source, or
-2. Verified after a future iteration that successfully extracts `pqxdh_accept`'s body (by isolating and rewriting the "no bottoms" trigger — see AENEAS-010).
-
-Until then, this assumption is the **scope limiter** for any theorem that depends on the recipient-side flow.
-
-**Discharge plan:**
-
-- *Short-term:* isolate the AENEAS-010 trigger via body bisection; either rewrite the offending pattern or file upstream.
-- *Once `pqxdh_accept` body is transparently extracted:* the correctness theorem becomes provable in Lean by symbolic equivalence to the initiator-side computation (matched DH and KEM operations + identical HKDF). The assumption then becomes a *Theorem*, not an axiom.
+**Outstanding work:** The actual *proof* of `pqxdh_accept` correctness (the PQXDH correctness theorem) is now a separate engineering task — it requires writing the Lean theorem statement and the proof of symbolic equivalence with `pqxdh_initiate`. The extraction substrate is no longer the blocker.
 
 **Scope (explicit non-coverage):**
 

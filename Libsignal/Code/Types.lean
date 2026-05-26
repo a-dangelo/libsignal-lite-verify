@@ -196,16 +196,23 @@ inductive kem.Public where
 @[reducible]
 def kem.BadKEMKeyLength := Unit
 
+/-- [libsignal_protocol::kem::Secret]
+    Source: 'rust/protocol/src/kem.rs', lines 270:0-270:18
+    Visibility: public -/
+inductive kem.Secret where
+
+/-- [libsignal_protocol::kem::DecapsulateError]
+    Source: 'rust/protocol/src/kem.rs', lines 200:0-203:1 -/
+@[discriminant isize]
+inductive kem.DecapsulateError where
+| BadKeyLength : kem.DecapsulateError
+| BadCiphertext : kem.DecapsulateError
+
 /-- Trait declaration: [libsignal_protocol::kem::KeyKind]
     Source: 'rust/protocol/src/kem.rs', lines 258:0-260:1
     Visibility: public -/
 structure kem.KeyKind (Self : Type) where
   key_length : kem.KeyType → Result Std.Usize
-
-/-- [libsignal_protocol::kem::Secret]
-    Source: 'rust/protocol/src/kem.rs', lines 270:0-270:18
-    Visibility: public -/
-inductive kem.Secret where
 
 /-- [libsignal_protocol::kem::Key]
     Source: 'rust/protocol/src/kem.rs', lines 308:0-311:1
@@ -224,6 +231,10 @@ structure kem.Ciphertext where
     Source: 'rust/protocol/src/kem.rs', lines 368:21-370:13 -/
 @[reducible]
 def kem.KeyPublic.encapsulate.closure (R : Type) := kem.Key kem.Public
+
+/-- [libsignal_protocol::kem::{libsignal_protocol::kem::Key<libsignal_protocol::kem::Secret>}::decapsulate::closure]
+    Source: 'rust/protocol/src/kem.rs', lines 403:21-410:13 -/
+def kem.KeySecret.decapsulate.closure := kem.Key kem.Secret × Slice Std.U8
 
 /-- [libsignal_protocol::kem::KeyPair]
     Source: 'rust/protocol/src/kem.rs', lines 460:0-463:1

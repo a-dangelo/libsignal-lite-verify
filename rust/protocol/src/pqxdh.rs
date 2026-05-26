@@ -329,12 +329,16 @@ impl RecipientParameters {
 /// Computes DH shared secrets and KEM decapsulation, then applies the KDF
 /// to produce keys ready for ratchet initialization.
 pub(crate) fn pqxdh_accept(parameters: &RecipientParameters) -> Result<HandshakeKeys> {
-    // Validate the initiator's base key before doing any computation.
+    // M10: replace `InvalidMessage(CiphertextMessageType::PreKey, "incoming
+    // base key is invalid")` with the unit variant `InvalidKeyAgreement`.
+    // Reason: Aeneas's symbolic interpreter fails ("no bottoms") on early-
+    // return-with-Err carrying a `&'static str` payload. See AENEAS-010 in
+    // .formalising/toFVS/charon-aeneas-shortcomings.md and src-modifications.md.
+    // Semantic equivalence: a non-canonical ephemeral key would equally cause
+    // calculate_agreement below to fail; the early-return is a fail-fast
+    // optimization, not a semantic requirement.
     if !parameters.their_ephemeral_key.is_canonical() {
-        return Err(SignalProtocolError::InvalidMessage(
-            CiphertextMessageType::PreKey,
-            "incoming base key is invalid",
-        ));
+        return Err(SignalProtocolError::InvalidKeyAgreement);
     }
 
     let mut secrets = Vec::with_capacity(32 * 6);

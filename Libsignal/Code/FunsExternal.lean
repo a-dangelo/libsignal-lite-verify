@@ -363,11 +363,35 @@ axiom pqxdh.InitiatorParameters.impl.their_one_time_pre_key
 axiom pqxdh.RecipientParameters.impl.our_one_time_pre_key_pair
   : pqxdh.RecipientParameters → Result (Option libsignal_core.curve.KeyPair)
 
-/-- [libsignal_protocol::pqxdh::pqxdh_accept]:
-    Source: 'rust/protocol/src/pqxdh.rs', lines 331:0-381:1
-    NOTE: M09 INTERIM — body axiomatic pending AENEAS-010 resolution.
-          Must be reverted to a transparent extraction in Phase B. -/
-axiom pqxdh.pqxdh_accept
+-- (pqxdh_accept is now extracted as a transparent def in Funs.lean; the
+--  earlier INTERIM axiom was removed once Phase B resolved the AENEAS-010
+--  trigger via a source rewrite of the early-return-with-Err pattern.)
+
+-- ── Additional axioms reachable from pqxdh_accept's body ──
+
+/-- [core::convert::From<&[T]> for alloc::boxed::Box<[T]>}::from]:
+    Used by BoxSlice.Insts.CoreConvertFromShared0Slice trait impl at Funs.lean:49. -/
+@[rust_fun "core::convert::From<Box<[@T]>, &'0 [@T]>"]
+axiom BoxSlice.Insts.CoreConvertFromShared0Slice.from
+  {T : Type} (corecloneCloneInst : core.clone.Clone T) :
+  Slice T → Result (Slice T)
+
+/-- [libsignal_protocol::kem::{core::cmp::PartialEq<libsignal_protocol::kem::KeyType> for libsignal_protocol::kem::KeyType}::ne]:
+    Source: 'rust/protocol/src/kem.rs', lines 206:38-206:47
+    Visibility: public -/
+axiom kem.KeyType.Insts.CoreCmpPartialEqKeyType.ne
+  : kem.KeyType → kem.KeyType → Result Bool
+
+/-- [libsignal_protocol::kem::{libsignal_protocol::kem::KeyKind for libsignal_protocol::kem::Secret}::key_length]:
+    Source: 'rust/protocol/src/kem.rs', lines 273:4-275:5
+    Visibility: public -/
+axiom kem.Secret.Insts.Libsignal_protocolKemKeyKind.key_length
+  : kem.KeyType → Result Std.Usize
+
+/-- [libsignal_protocol::kem::kyber1024::{libsignal_protocol::kem::Parameters for libsignal_protocol::kem::kyber1024::Parameters}::decapsulate]:
+    Source: 'rust/protocol/src/kem/kyber1024.rs', lines 42:4-54:5 -/
+axiom
+  kem.kyber1024.Parameters.Insts.Libsignal_protocolKemParameters.decapsulate
   :
-  pqxdh.RecipientParameters → Result (core.result.Result pqxdh.HandshakeKeys
-    error.SignalProtocolError)
+  kem.KeyMaterial kem.Secret → Slice Std.U8 → Result (core.result.Result
+    (Slice Std.U8) kem.DecapsulateError)

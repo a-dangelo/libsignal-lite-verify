@@ -21,7 +21,7 @@ holds.
   byte-level change.
 - **Cross-references:** each entry links to its `charon-aeneas-shortcomings`
   AENEAS-xxx / CHARON-xxx issue ID at
-  `.formalising/toFVS/charon-aeneas-shortcomings.md`. When an upstream fix
+  `docs/charon-aeneas-shortcomings.md`. When an upstream fix
   lands, grep this file for the ID to find all reverts needed.
 
 ## Principles
@@ -119,7 +119,7 @@ needed.
 - **Commit:** `3bc37999` ("feat: workarounds for Aeneas GAT and trait-impl pre-pass issues")
 - **Type:** `attr-cfg-add` + scope-limit-via-exclusion
 - **Upstream issue:** AENEAS-001 (GAT in trait associated type) — see
-  `.formalising/toFVS/charon-aeneas-shortcomings.md`.
+  `docs/charon-aeneas-shortcomings.md`.
 
 **Diff (excerpt):**
 ```rust
@@ -326,7 +326,7 @@ Build verification: `cargo check -p libsignal-protocol` (no feature),
 **Justification:** `DynParameters` exists solely to make `KeyType::parameters() -> &'static dyn DynParameters` work as a runtime tag-dispatch from the `KeyType` enum to the appropriate ML-KEM impl. The `&dyn Trait` return type triggers AENEAS-009 (Aeneas's symbolic interpreter cannot model dynamic trait dispatch). Excluding the trait + impl removes both from Aeneas's view; the dispatch is replaced by direct calls at the two relevant call sites (M07).
 
 **Last-resort check:** Yes for the trait+impl exclusion. The genuine alternatives are:
-1. Wait for upstream support of `dyn Trait` (AENEAS-009; no roadmap commitment exists; structurally challenging — see `.formalising/fv-plans/aeneas-extract/dyn-trait-and-aeneas.md`).
+1. Wait for upstream support of `dyn Trait` (AENEAS-009; no roadmap commitment exists; structurally challenging — see the "Why it doesn't fit Aeneas's model" discussion under AENEAS-009 in `docs/charon-aeneas-shortcomings.md`).
 2. Adopt dictionary-passing translation in Aeneas (substantial upstream engineering).
 
 Manual monomorphization at the call sites (M07) is the standard pattern in the wider verified-Rust ecosystem (SPQR, curve25519-dalek, Hax-verified crates).
@@ -539,13 +539,13 @@ if !parameters.their_ephemeral_key.is_canonical() {
 | 1-arg variant *with* `&'static str` `Err(InvalidSessionStructure("..."))` | ✗ "no bottoms" |
 | 2-arg variant *with* `&'static str` (original) | ✗ "no bottoms" |
 
-So the trigger is specifically the `&'static str` payload — any Err variant carrying one fails. The fix substitutes a unit variant. See AENEAS-010 in `.formalising/toFVS/charon-aeneas-shortcomings.md` for the full bisection record + upstream-bug framing.
+So the trigger is specifically the `&'static str` payload — any Err variant carrying one fails. The fix substitutes a unit variant. See AENEAS-010 in `docs/charon-aeneas-shortcomings.md` for the full bisection record + upstream-bug framing.
 
 **Last-resort check:** The early-return is itself a fail-fast optimization: if `their_ephemeral_key` is non-canonical, the immediately-following `calculate_agreement(...)?` would also fail (with `InvalidKeyAgreement`). So removing the early-return entirely would still preserve safety. The chosen rewrite keeps the early-return for performance/clarity but swaps the error-variant to one that does not carry a `&'static str` payload — a strictly less invasive change than removing the check.
 
 **Semantic claim:** Up to error-variant identity, the original and rewritten code are equivalent on all inputs. The Rust caller chain treats both `InvalidMessage(PreKey, ...)` and `InvalidKeyAgreement` as "key agreement failed" errors. The string "incoming base key is invalid" was for human consumption (log message) only — its loss is observable only to operators reading logs, not to programmatic callers. The lower-level `calculate_agreement` ALSO returns `InvalidKeyAgreement` on a non-canonical key, so the rewritten function's error-variant on bad input is exactly what the original would have produced one statement later anyway.
 
-**Revertibility:** When AENEAS-010 is fixed upstream (see suggested fix in `.formalising/toFVS/charon-aeneas-shortcomings.md`), restore the original `InvalidMessage(CiphertextMessageType::PreKey, "incoming base key is invalid")` and remove the M10 comment block.
+**Revertibility:** When AENEAS-010 is fixed upstream (see suggested fix in `docs/charon-aeneas-shortcomings.md`), restore the original `InvalidMessage(CiphertextMessageType::PreKey, "incoming base key is invalid")` and remove the M10 comment block.
 
 ---
 
@@ -565,7 +565,7 @@ https://github.com/AeneasVerif/aeneas/issues):
 5. `grep AENEAS-010 src-modifications.md` → revert M10 (restore the
    `InvalidMessage(CiphertextMessageType::PreKey, "incoming base key is
    invalid")` early-return). M09 was historic and is already removed.
-6. `grep AENEAS-012 ../.formalising/toFVS/charon-aeneas-shortcomings.md` →
+6. `grep AENEAS-012 docs/charon-aeneas-shortcomings.md` →
    remove the encapsulate-call-site tweaks substitutions from `aeneas-config.yml`.
 7. M01 (the `register_tool(charon)` prelude) stays as long as we use any
    `charon::*` attributes; revert only when all attributes are gone.

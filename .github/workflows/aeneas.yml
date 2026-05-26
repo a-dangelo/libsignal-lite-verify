@@ -23,6 +23,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential git curl opam pkg-config libgmp-dev
 
+      - name: Install protoc
+        run: |
+          curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v32.0/protoc-32.0-linux-x86_64.zip
+          sudo unzip -o protoc-32.0-linux-x86_64.zip -d /usr/local bin/protoc
+          sudo unzip -o protoc-32.0-linux-x86_64.zip -d /usr/local 'include/*'
+          rm protoc-32.0-linux-x86_64.zip
+
       - name: Initialize opam
         run: opam init --disable-sandboxing -y -a
 

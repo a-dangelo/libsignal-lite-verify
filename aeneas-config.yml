@@ -288,7 +288,7 @@ tweaks:
     # Self_NonZeroInner:Copy parent clauses are emitted as `markerCopyInst`,
     # producing a "Field has already been declared" Lean error.
     # Rename the second occurrence and its assignment sites.
-    # See AENEAS-010 in docs/charon-aeneas-shortcomings.md.
+    # See AENEAS-010 in extraction-docs/charon-aeneas-shortcomings.md.
     - find: '(parentClauses := ["markerCopyInst", "privateSealedInst", "markerCopyInst"])'
       replace: '(parentClauses := ["markerCopyInst", "privateSealedInst", "markerCopyInnerInst"])'
     - find: "markerCopyInst : core.marker.Copy Self_NonZeroInner"
